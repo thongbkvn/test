@@ -55,11 +55,25 @@ ClassInfo::ClassInfo(std::string name, std::string super_name, int flags)
       super->addChild(this);
 }
 
-void ClassInfo::addChild(ClassInfo *child)
+int ClassInfo::addChild(ClassInfo *child)
 {
+  for (std::vector<ClassInfo*>::iterator i = childs.begin(); i != childs.end(); i++)
+    if ((*i)->name == child->name)
+      return 0;
     childs.push_back(child);
+    return 1;
 }
 
+int ClassInfo::addDescendant(ClassInfo *descendant, std::string super_name)
+{
+  if (super_name == "")
+    return addChild(descendant);
+  
+  ClassInfo *sup = getClass(super_name);
+  if (sup != NULL)
+    return sup->addChild(descendant);
+  return 0;
+}
 
 int ClassInfo::addField(FieldInfo *field)
 {

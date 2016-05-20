@@ -6,40 +6,105 @@
 #include "MiniJava.tab.h"
 #include "ClassInfo.h"
 #include "Constant.h"
-#include "ErrorReport.h"
 #include "FieldInfo.h"
 #include "FieldType.h"
 #include "MethodInfo.h"
+#include <iostream>
+  
   extern int yylex();
   void yyerror(const char*);
 
 
-  enum _ExpType {EXP_BOOLEAN, EXP_INT,EXP_FLOAT};
-  enum _VarType {VOID_TYPE, BASE_TYPE, OBJECT_TYPE, ARRAY_TYPE};
-  enum _BaseType {BOOLEAN, INTEGER, FLOAT};
-
-  struct _Expression
-  {
-    enum _ExpType expr;
-    int bool_value;
-    int int_value;
-    float float_value;
-  };
-
-  struct _Type
-  {
-    enum _VarType type;
-    char *object_class, component;
-  };
-
   void *scope;
   ClassInfo* root; //Pham vi hien tai dang xet
 
+  enum TokenType
+  {
+    TK_VARIABLE, TK_CLASS, TK_METHOD,
+    TK_IF, TK_ELSE, TK_SWITCH,
+    TK_WHILE,
+    TK_TYPE, TK_EXPRESSION, TK_CONSTANT
+  };
+  //Dung cho constant
+  enum ConstantType
+  {
+    CONST_BOOLEAN,
+    CONST_INT,
+    CONST_FLOAT
+  };
+
+  struct Token
+  {
+    TokenType token_type;
+    int line;
+  
+    //Nhung thong tin cho constant
+    ConstantType const_type;
+    char *const_value;
+
+    //Nhung thong tin cho type
+    FieldType::Type field_type;
+    FieldType::BaseType base_type;
+    std::string type_info;
+
+    std::string name; //Dung cho ten ham, ten bien, ten class
+    std::string params; //Dung cho ds tham so, ten class super
+  };
+
+  //Co the can luu token vao dslk de free khi can thiet
+  struct Token* createToken(TokenType token_type)
+  {
+    struct Token *token = (struct Token*) malloc(sizeof(Token));
+    token->token_type = token_type;
+    token->line = yylloc.first_line;
+    return token;
+  }
+
+  struct Token* createClassToken(std::string name, std::string super)
+  {
+    struct Token* token = createToken(TK_CLASS);
+    token->name = name;
+    token->params = super;
+    return token;
+  }
+
+  struct Token* createVarToken(struct Token* type, std::string name)
+  {
+    struct Token* token = createToken(TK_VARIABLE);
+    token->field_type = type->field_type;
+    if (token->field_type == FieldType::BASE_TYPE)
+      token->base_type = type->base_type;
+    else
+      token->type_info = type->type_info;
+    token->name = name;
+    return token;
+  }
+     
+  struct Token* createTypeToken(FieldType::Type field_type, std::string info)
+  {
+    struct Token *token = createToken(TK_TYPE);
+    token->field_type = field_type;
+    if (field_type == FieldType::BASE_TYPE)
+      {
+	if (info == "BOOLEAN")
+	  token->base_type = FieldType::BOOLEAN;
+	else if (info == "INTEGER")
+	  token->base_type = FieldType::INTEGER;
+	else if (info == "FLOAT")
+	  token->base_type = FieldType::FLOAT;
+      }
+    else
+      token->type_info = info;
+    return token;
+  }
 
 
-
-
-
+ 
+  void errorReport(const char* msg)
+  {
+    std::cout << "Error at line " << yylloc.first_line << ":" << msg << std::endl;
+  }
+ 
   %}
 /*------------------PART 2 ------------------*/
 %union semrec {
@@ -47,8 +112,7 @@
   float real;
   char* str;
   char* ident;
-  struct _Expression *expr;
-  struct _Type *type;
+  struct Token* token;
 }
 
 
@@ -58,11 +122,13 @@
 %token KW_CLASS KW_EXTENDS KW_PUBLIC KW_STATIC KW_BOOLEAN KW_STRING KW_FLOAT KW_INT
 %token KW_IF KW_WHILE KW_BREAK KW_CONTINUE KW_SWITCH KW_CASE KW_DEFAULT KW_RETURN
 %token KW_NEW KW_THIS KW_NULL KW_TRUE KW_FALSE KW_PRINTLN
-%token IDENT INT_LITERAL FLOAT_LITERAL STRING_LITERAL
+%token IDENT INT_LITERAL FLOAT_LITERAL STRING_LITERAL TYPE_ERROR
 
 %nonassoc "THEN"
 %nonassoc KW_ELSE
 
+%type <token> Type ClassDecl
+%type <ident> IDENT ExtendsFrom
 
 %right OP_ASSIGN
 %left OP_OR
@@ -86,44 +152,52 @@ Program:		ClassDeclp
 ClassDeclp:		ClassDecl
 | ClassDeclp ClassDecl
 ;
-ClassDecl:		KW_CLASS IDENT ExtendsFrom
+
+ClassDecl:		KW_CLASS IDENT ExtendsFrom {$$ =createClassToken(std::string($2), std::string($3));}
 '{' VarDecls MethodDecls '}'
 ;
-ExtendsFrom:		/*empty*/
-| KW_EXTENDS IDENT
+
+ExtendsFrom:		/*empty*/ {$$ = "Object";}
+| KW_EXTENDS IDENT {$$ = yyval.ident;}
 ;
 
 VarDecls:		VarDecls VarDecl 
 | /*empty*/
 ;
-VarDecl:		Type IDENT ';'
+
+VarDecl:		Type IDENT ';' {struct Token* token = createVarToken($1, std::string(yyval.ident));
+ }
 | KW_STATIC Type IDENT ';' /*Co the sua thanh AcessModifier Type IDENT*/
 ;
 
 MethodDecls:		/*empty*/
 | MethodDecls MethodDecl {printf("Method Decls\n");}
 ;
+
 MethodDecl:		KW_PUBLIC Type MethodSignature
 '{'VarDecls Statements KW_RETURN Expression ';' '}'
 ;
+
 MethodSignature:	IDENT '('MethodParams')' 
 ;
 
 MethodParams:		/*empty*/ 
 | ListParam 
 ;
+
 ListParam:		SingleParam
 | SingleParam ',' ListParam
 ;
+
 SingleParam:		Type IDENT
 ;
 
-Type :			Type '['']'
-| KW_BOOLEAN
-| KW_STRING
-| KW_FLOAT
-| KW_INT
-| IDENT
+Type :			Type '['']' {$$=createTypeToken(FieldType::ARRAY_TYPE, "");}
+| KW_BOOLEAN {$$=createTypeToken(FieldType::BASE_TYPE, std::string("BOOLEAN"));}
+| KW_STRING {$$=createTypeToken(FieldType::OBJECT_TYPE, std::string("String"));}
+| KW_FLOAT {$$=createTypeToken(FieldType::BASE_TYPE, std::string("FLOAT"));}
+| KW_INT {$$=createTypeToken(FieldType::BASE_TYPE, std::string("INTEGER"));}
+| IDENT {$$=createTypeToken(FieldType::OBJECT_TYPE, $1->name);}
 ;
 Statements:		Statementp
 | /*empty */
@@ -132,7 +206,7 @@ Statementp:		Statementp Statement
 | Statement
 ;
 Statement:		'{'Statements'}'
-| KW_IF '(' Expression ')' Statement %prec "THEN"
+| KW_IF '(' Expression ')' Statement %prec "THEN" 
 | KW_IF '(' Expression ')' Statement KW_ELSE Statement
 | KW_WHILE '(' Expression ')'Statement
 | KW_PRINTLN '(' Expression ')' ';'
@@ -194,6 +268,14 @@ ParamList:		/*empty*/
 | Expression
 ;
 %%
+
+
+
+
+
+
+
+
 int main(int argc, char** argv)
 {
   extern FILE *yyin;

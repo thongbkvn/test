@@ -71,43 +71,43 @@ extern int yydebug;
     INT_LITERAL = 281,
     FLOAT_LITERAL = 282,
     STRING_LITERAL = 283,
-    KW_ELSE = 285,
-    OP_ASSIGN = 286,
-    OP_OR = 287,
-    OP_AND = 288,
-    CMP_EQ = 289,
-    CMP_NEQ = 290,
-    CMP_GT = 291,
-    CMP_LT = 292,
-    CMP_GTE = 293,
-    CMP_LTE = 294,
-    OP_ADD = 295,
-    OP_MINUS = 296,
-    OP_MULT = 297,
-    OP_DIV = 298,
-    OP_MOD = 299,
-    OP_NOT = 300,
-    OP_UNARY = 301
+    TYPE_ERROR = 284,
+    KW_ELSE = 286,
+    OP_ASSIGN = 287,
+    OP_OR = 288,
+    OP_AND = 289,
+    CMP_EQ = 290,
+    CMP_NEQ = 291,
+    CMP_GT = 292,
+    CMP_LT = 293,
+    CMP_GTE = 294,
+    CMP_LTE = 295,
+    OP_ADD = 296,
+    OP_MINUS = 297,
+    OP_MULT = 298,
+    OP_DIV = 299,
+    OP_MOD = 300,
+    OP_NOT = 301,
+    OP_UNARY = 302
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-#line 45 "MiniJava.y" /* yacc.c:1909  */
+#line 110 "MiniJava.y" /* yacc.c:1909  */
 union semrec
 {
-#line 45 "MiniJava.y" /* yacc.c:1909  */
+#line 110 "MiniJava.y" /* yacc.c:1909  */
 
   int num;
   float real;
   char* str;
   char* ident;
-  struct _Expression *expr;
-  struct _Type *type;
+  struct Token* token;
 
 #line 109 "MiniJava.tab.h" /* yacc.c:1909  */
 };
-#line 45 "MiniJava.y" /* yacc.c:1909  */
+#line 110 "MiniJava.y" /* yacc.c:1909  */
 typedef union semrec YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

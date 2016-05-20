@@ -35,7 +35,8 @@ public:
     ClassInfo(std::string name, std::string super_name = "", int flags = ACC_PUBLIC);
     int addField(FieldInfo *field);
     int addMethod(MethodInfo *method);
-    void addChild(ClassInfo *child);
+    int addChild(ClassInfo *child);
+    int addDescendant(ClassInfo *descendant, std::string super_name = "");
     
     
     FieldInfo* getFieldLocal(std::string field_name);
